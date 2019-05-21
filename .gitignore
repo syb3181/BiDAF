@@ -1,0 +1,11 @@
+.idea/*
+*.pyc
+*/output/*
+*/*/output/*
+*/*/*/output/*
+output/*
+*.PDF
+.DS_Store
+.DS_Store?
+*.jar
+tmp/*
