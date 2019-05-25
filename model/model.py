@@ -104,6 +104,7 @@ class Model(nn.Module):
         q = self.embedding_layer(query_word, query_char)
         # B x T x 8E
         g = att_flow_layer(c, q)
+        # g = torch.cat((c, q), dim=-1)
         # B x T x 2E
         m, _ = self.lstm(g)
         # B x T x 10E
@@ -126,7 +127,8 @@ class Model(nn.Module):
         reshaped_labels = torch.LongTensor([x for x, y in labels] + [y for x, y in labels]).cuda()
         # 2B x T
         p_pred = torch.cat((p1_pred, p2_pred), dim=0)
-        return F.cross_entropy(p_pred, reshaped_labels)
+        ce_loss = F.cross_entropy
+        return ce_loss(p_pred, reshaped_labels)
 
     def accuracy(self, outputs, labels):
         p1_pred, p2_pred = outputs

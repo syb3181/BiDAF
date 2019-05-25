@@ -9,6 +9,6 @@ if __name__ == '__main__':
     with open(ns.big_path, 'r', encoding='utf-8') as fin:
         a = json.load(fin)
         articles = a['data']
-        a['data'] = articles[:500]
+        a['data'] = articles[:50]
         with open(ns.small_path, 'w', encoding='utf-8') as fout:
             json.dump(a, fout)

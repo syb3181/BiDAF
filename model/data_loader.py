@@ -68,7 +68,7 @@ class DataLoader(object):
                 s = s + tk_list[j]
                 j += 1
             if target == s:
-                return i, j
+                return i, j - 1
         return -1, -1
 
     def __build_text_field(self):
@@ -153,5 +153,5 @@ if __name__ == '__main__':
         s_ind, t_ind = ans_ind.numpy()
         print(s_ind, t_ind)
         print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in a.a[i]])
-        print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in a.c[i][s_ind: t_ind]])
+        print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in a.c[i][s_ind: t_ind + 1]])
 
