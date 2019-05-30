@@ -10,7 +10,7 @@ import torch.optim as optim
 from tqdm import trange
 
 import utils.model_utils as utils
-import model.model as net
+import model.bidaf as net
 from model.data_loader import DataLoader
 from evaluate import evaluate
 
@@ -20,6 +20,7 @@ parser.add_argument('--model_dir', default='model_dir', help="Directory containi
 parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before \
                     training")  # 'best' or 'train'
+parser.add_argument('--train_data_file_name', default='all.json')
 
 
 def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
@@ -46,12 +47,10 @@ def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
     for i in t:
         # fetch the next training batch
         batch = next(data_iterator)
-        c_w, q_w, c_c, q_c = batch.c, batch.q, batch.c_char, batch.q_char
-        c_w, q_w, c_c, q_c = c_w.cuda(), q_w.cuda(), c_c.cuda(), q_c.cuda()
         labels_batch = batch.ans_ind
 
         # compute model output and loss
-        output_batch = model(c_w, c_c, q_w, q_c)
+        output_batch = model(batch)
         loss = loss_fn(output_batch, labels_batch)
 
         # clear previous gradients, compute gradients of all variables wrt loss
@@ -167,9 +166,7 @@ if __name__ == '__main__':
     logging.info("Loading the datasets...")
 
     # load data
-    # data_loader = DataLoader(os.path.join(args.data_dir, 'train', 'train-v1.1.json'), params)
-    data_loader = DataLoader(os.path.join(args.data_dir, 'train', 'small.json'), params)
-
+    data_loader = DataLoader(os.path.join(args.data_dir, 'train', args.train_data_file_name), params)
 
     # specify the train and val dataset sizes( append in data_loader
     # params.train_size = train_data['size']

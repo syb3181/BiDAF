@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from utils.func_utils import load_embedding_dict
 from utils.func_utils import build_embedding_matrix
+from model.highway_network import HighwayNetwork
 
 
 class BiDAFEmbeddingLayer(nn.Module):
@@ -31,14 +32,20 @@ class BiDAFEmbeddingLayer(nn.Module):
             out_channels=params.char_cnn_output_channels,
             kernel_size=(params.char_embedding_dim, params.char_cnn_channel_width)
         )
+        # highway
+        self.highway_network = HighwayNetwork(dim=params.embedding_lstm_input_size)
+        # self.highway_network = HighwayNetwork(dim=100)
+        # lstm
+        self.lstm_dropout = nn.Dropout(params.embedding_lstm_dropout)
         self.lstm = nn.LSTM(
-            input_size=params.embedding_lstm_input_size,
+            # input_size=params.embedding_lstm_input_size,
+            input_size=params.word_embedding_dim,
             hidden_size=params.bidaf_embedding_dim,
             batch_first=True,
             bidirectional=True
         )
 
-    def forward(self, x_word, x_char):
+    def forward(self, x_word, x_char, x_lens):
         """
         WL: params.max_word_len
         CE: params.char_embedding_dim
@@ -46,6 +53,7 @@ class BiDAFEmbeddingLayer(nn.Module):
         E:  params.bidaf_embedding_size
         :param x_word:      B x L
         :param x_char:      B x (L x WL)
+        :param x_lens        B x L
         :return:  B x L x 2E
         """
         def char_embedding_layer(x):
@@ -56,11 +64,13 @@ class BiDAFEmbeddingLayer(nn.Module):
             B = x.size(0)
             # B x L x WL
             x = x.view(B, -1, WL)
-            # B x L x CE x WL
+            # B x L x WL x CE
             x = self.dropout(self.char_embedding(x))
-            # (B x L) x 1 x CE x WL
+            # B x L x CE x WL
+            x = x.transpose(-1, -2)
+            # (B x L) x CI(1) x CE x WL
             x = x.view(-1, CE, WL).unsqueeze(1)
-            # (B x L) x CO x conv_len
+            # (B x L) x CO x w_out(1) x h_out
             x = self.char_conv(x).squeeze()
             # (B x L) x CO
             x = F.max_pool1d(x, x.size(2)).squeeze()
@@ -75,6 +85,12 @@ class BiDAFEmbeddingLayer(nn.Module):
         word_e = self.word_embedding(x_word)
         # B x L x CO
         char_e = char_embedding_layer(x_char)
-        lstm_input = torch.cat((word_e, char_e), dim=2)
+        # B x L x (E + CO)
+        # lstm_input = self.lstm_dropout(torch.cat((word_e, char_e), dim=2))
+        # lstm_input = self.highway_network(lstm_input)
+        lstm_input = self.lstm_dropout(word_e)
+        # lstm_input = word_e
+        lstm_input = torch.nn.utils.rnn.pack_padded_sequence(lstm_input, x_lens, enforce_sorted=False, batch_first=True)
         lstm_output, _ = self.lstm(lstm_input)
+        lstm_output, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_output, batch_first=True)
         return lstm_output

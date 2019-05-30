@@ -7,14 +7,8 @@ import os
 import numpy as np
 import torch
 import utils
-import model.model as net
+import model.bidaf as net
 from model.data_loader import DataLoader
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--data_dir', default='data/small', help="Directory containing the dataset")
-parser.add_argument('--model_dir', default='experiments/base_model', help="Directory containing params.json")
-parser.add_argument('--restore_file', default='best', help="name of the file in --model_dir \
-                     containing weights to load")
 
 
 def evaluate(model, loss_fn, data_iterator, metrics, params, num_steps):
@@ -38,13 +32,13 @@ def evaluate(model, loss_fn, data_iterator, metrics, params, num_steps):
     for _ in range(num_steps):
         # fetch the next training batch
         batch = next(data_iterator)
-        c_w, q_w, c_c, q_c = batch.c, batch.q, batch.c_char, batch.q_char
-        c_w, q_w, c_c, q_c = c_w.cuda(), q_w.cuda(), c_c.cuda(), q_c.cuda()
         labels_batch = batch.ans_ind
 
         # compute model output and loss
-        output_batch = model(c_w, c_c, q_w, q_c)
+        output_batch = model(batch)
         loss = loss_fn(output_batch, labels_batch)
+
+        # generate output
 
         # extract data from torch Variable, move to cpu, convert to numpy arrays
         p1, p2 = output_batch
@@ -68,6 +62,11 @@ if __name__ == '__main__':
     """
         Evaluate the model on the test set.
     """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--test_data_path', default='data/dev/dev-v1.1.json', help="test data path")
+    parser.add_argument('--model_dir', default='model_dir', help="Directory containing params.json")
+    parser.add_argument('--restore_file', default='best', help="name of the file in --model_dir \
+                         containing weights to load")
     # Load the parameters
     args = parser.parse_args()
     json_path = os.path.join(args.model_dir, 'params.json')
@@ -89,12 +88,12 @@ if __name__ == '__main__':
 
     # load data
     data_loader = DataLoader(args.data_dir, params)
-    data = data_loader.load_data(['test'], args.data_dir)
-    test_data = data['test']
+    data = data_loader.load_data(args.test_data_path)
+    test_data_iterator = data_loader.data_iterator(split='dev', batch_size=params.batch_size)
 
     # specify the test set size
-    params.test_size = test_data['size']
-    test_data_iterator = data_loader.data_iterator(test_data, params)
+    # params.test_size = test_data['size']
+    # test_data_iterator = data_loader.data_iterator(test_data, params)
 
     logging.info("- done.")
 

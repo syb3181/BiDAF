@@ -2,8 +2,9 @@ import json
 import nltk
 import random
 
+import numpy as np
+
 from torchtext.data import Field
-from torchtext.data import RawField
 from torchtext.data import Dataset
 from torchtext.data import Example
 from torchtext.data import BucketIterator
@@ -76,7 +77,8 @@ class DataLoader(object):
             sequential=True,
             use_vocab=True,
             batch_first=True,
-            tokenize=self.word_level_tokenize
+            tokenize=self.word_level_tokenize,
+            include_lengths=True
         )
         self.CHAR_TEXT_FIELD = Field(
             sequential=True,
@@ -119,7 +121,7 @@ class DataLoader(object):
                         'a': answer['text'],
                         'c_char': context,
                         'q_char': query,
-                        'ans_ind': (s_ind, t_ind)
+                        'ans_ind': (s_ind, t_ind),
                     }
                     ret.append(Example.fromdict(data, self.example_data_fields))
         return ret
@@ -135,6 +137,25 @@ class DataLoader(object):
 
     def data_iterator(self, split, batch_size):
         return iter(BucketIterator(self.dataset[split], batch_size=batch_size))
+
+    def translate(self, batch, p1_pred, p2_pred):
+        """
+        :param batch:
+        :param preds: list of (start, end)
+        :return:
+        """
+        c, c_lens = batch.c
+        ret = []
+        pred1 = np.argmax(p1_pred, axis=1)
+        pred2 = np.argmax(p2_pred, axis=1)
+        preds = [(x, y) for x, y in zip(pred1, pred2)]
+        for text, len, (s, t) in zip(c, c_lens, preds):
+            tks = DataLoader.word_level_tokenize(text)[:len]
+            ret.append(''.join(tks[s: t+1]))
+        for x, y in zip(batch.a, ret):
+            print(x)
+            print(y)
+        return ret
 
 
 if __name__ == '__main__':
