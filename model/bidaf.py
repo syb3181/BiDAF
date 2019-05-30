@@ -136,13 +136,13 @@ class Model(nn.Module):
         m, _ = pad_packed_sequence(m, batch_first=True)
         # B x T
         p1_pred = (self.p1_w_g(g) + self.p1_w_m(m)).squeeze()
-        p1_pred = masked_softmax(p1_pred, c_mask)
+        p1_pred = masked_softmax(p1_pred, c_mask, log_softmax=True)
         # B x T x 2E
         m2, _ = self.output_lstm(pack_padded_sequence(m, c_lens, enforce_sorted=False, batch_first=True))
         m2, _ = pad_packed_sequence(m2, batch_first=True)
         # B x T
         p2_pred = (self.p2_w_g(g) + self.p2_w_m(m2)).squeeze()
-        p2_pred = masked_softmax(p2_pred, c_mask)
+        p2_pred = masked_softmax(p2_pred, c_mask, log_softmax=True)
         return p1_pred, p2_pred
 
     def loss_fn(self, outputs, labels):

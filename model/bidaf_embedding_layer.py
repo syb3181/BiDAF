@@ -33,8 +33,8 @@ class BiDAFEmbeddingLayer(nn.Module):
             kernel_size=(params.char_embedding_dim, params.char_cnn_channel_width)
         )
         # highway
-        self.highway_network = HighwayNetwork(dim=params.embedding_lstm_input_size)
-        # self.highway_network = HighwayNetwork(dim=100)
+        # self.highway_network = HighwayNetwork(dim=params.embedding_lstm_input_size)
+        self.highway_network = HighwayNetwork(dim=100)
         # lstm
         self.lstm_dropout = nn.Dropout(params.embedding_lstm_dropout)
         self.lstm = nn.LSTM(
@@ -87,7 +87,7 @@ class BiDAFEmbeddingLayer(nn.Module):
         char_e = char_embedding_layer(x_char)
         # B x L x (E + CO)
         # lstm_input = self.lstm_dropout(torch.cat((word_e, char_e), dim=2))
-        # lstm_input = self.highway_network(lstm_input)
+        lstm_input = self.highway_network(word_e)
         lstm_input = self.lstm_dropout(word_e)
         # lstm_input = word_e
         lstm_input = torch.nn.utils.rnn.pack_padded_sequence(lstm_input, x_lens, enforce_sorted=False, batch_first=True)
