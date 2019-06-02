@@ -19,32 +19,17 @@ class DataLoader(object):
     Handles all aspects of the data.
     """
 
-    def __init__(self, data_path, params):
+    def __init__(self, params):
         """
-        Loads dataset_params, vocabulary and tags. Ensure you have run `build_vocab.py` on data_dir before using this
-        class.
+        Loads dataset_params, vocabulary and tags.
         Args:
-            data_dir: (string) directory containing the dataset
-            params: (Params) hyperparameters of the training process. This function modifies params and appends
-                    dataset_params (such as vocab size, num_of_tags etc.) to params.
+            params: (Params) hyperparameters of the training process.
+            This function modifies params and appends
+                    dataset params (such as vocab size, num_of_tags etc.) to params.
         """
-        if type(params) == str:
-            params = Params(params)
         self.params = params
         self.__build_text_field()
-        self.examples = self.load_data(data_path)
         self.dataset = {}
-        self.dataset['all'] = Dataset(
-            examples=self.examples,
-            fields=[v for k, v in self.example_data_fields.items()]
-        )
-        self.dataset['train'], self.dataset['val'] = self.dataset['all'].split(
-            split_ratio=params.split_ratio,
-            random_state=random.getstate()
-        )
-        # updata params
-        params.train_size = len(self.dataset['train'].examples)
-        params.val_size = len(self.dataset['val'].examples)
         params.word_vocab_size = len(self.WORD_TEXT_FIELD.vocab.itos)
         params.char_vocab_size = len(self.CHAR_TEXT_FIELD.vocab.itos)
         params.word_vocab = self.WORD_TEXT_FIELD.vocab.itos
@@ -60,7 +45,7 @@ class DataLoader(object):
         ], [])
 
     @staticmethod
-    def find_ind_in_tk_list(tk_list, target: str):
+    def __find_ind_in_tk_list(tk_list, target: str):
         target = target.replace(' ', '')
         for i in range(len(tk_list)):
             s = tk_list[i]
@@ -104,16 +89,24 @@ class DataLoader(object):
 
     def __article_to_examples(self, article: dict):
         ret = []
+        answer_not_found_in_context, answer_tot = 0, 0
         paragraphs = article['paragraphs']
         for i, paragraph in enumerate(paragraphs):
             context = paragraph['context']
             qas = paragraph['qas']
             for qa in qas:
                 query = qa['question']
+                # normalize quote
+                context = context.replace("''", '" ').replace("``", '" ')
+                query = query.replace("''", '" ').replace("``", '" ')
                 for answer in qa['answers']:
                     tc = DataLoader.word_level_tokenize(context)
-                    s_ind, t_ind = DataLoader.find_ind_in_tk_list(tc, answer['text'])
+                    s_ind, t_ind = DataLoader.__find_ind_in_tk_list(tc, answer['text'])
+                    answer_tot += 1
                     if s_ind < 0:
+                        print(answer)
+                        print(tc)
+                        answer_not_found_in_context += 1
                         continue
                     data = {
                         'c': context,
@@ -124,9 +117,28 @@ class DataLoader(object):
                         'ans_ind': (s_ind, t_ind),
                     }
                     ret.append(Example.fromdict(data, self.example_data_fields))
+        print('{}/{} answer not found in context!'.format(answer_not_found_in_context, answer_tot))
         return ret
 
-    def load_data(self, data_path):
+    def load_data(self, data_path, split='all'):
+        examples = self.__load_data(data_path)
+        self.dataset[split] = Dataset(
+            examples=examples,
+            fields=[v for k, v in self.example_data_fields.items()]
+        )
+
+    def split_data(self):
+        assert 'all' in self.dataset, "Load data to tab all first!"
+        self.dataset['train'], self.dataset['val'] = self.dataset['all'].split(
+            split_ratio=self.params.split_ratio,
+            random_state=random.getstate()
+        )
+
+    def get_dataset_size(self, split):
+        assert split in self.dataset, "Tab {} is not loaded!".format(split)
+        return len(self.dataset[split].examples)
+
+    def __load_data(self, data_path):
         examples = []
         with open(data_path, 'r', encoding='utf-8') as f:
             a = json.load(f)
@@ -138,34 +150,21 @@ class DataLoader(object):
     def data_iterator(self, split, batch_size):
         return iter(BucketIterator(self.dataset[split], batch_size=batch_size))
 
-    def translate(self, batch, p1_pred, p2_pred):
-        """
-        :param batch:
-        :param preds: list of (start, end)
-        :return:
-        """
-        c, c_lens = batch.c
-        ret = []
-        pred1 = np.argmax(p1_pred, axis=1)
-        pred2 = np.argmax(p2_pred, axis=1)
-        preds = [(x, y) for x, y in zip(pred1, pred2)]
-        for text, len, (s, t) in zip(c, c_lens, preds):
-            tks = DataLoader.word_level_tokenize(text)[:len]
-            ret.append(''.join(tks[s: t+1]))
-        for x, y in zip(batch.a, ret):
-            print(x)
-            print(y)
-        return ret
-
 
 if __name__ == '__main__':
-    data_loader = DataLoader('../data/dev/dev-v1.1.json', '../data/dataset_configs.json')
-    it = data_loader.data_iterator(split='val', batch_size=4)
+    params = Params('../data/dataset_configs.json')
+    data_loader = DataLoader(params)
+    data_path = '../data/train/small.json'
+    data_loader.load_data(data_path, 'all')
+    data_loader.split_data()
+    batch_size = 4
+    it = data_loader.data_iterator('train', batch_size=batch_size)
     a = next(it)
-    print(a.c)
-    print(a.c.size())
-    print(a.c_char.size())
-    z = a.c_char.view((4, -1, 20))
+    c, c_lens = a.c
+    c_char = a.c_char
+    print(c.size())
+    print(c_char.size())
+    z = a.c_char.view((batch_size, -1, params.max_word_len))
     print(z.size())
     for i in range(4):
         tk_list = a.c[i]
@@ -175,4 +174,3 @@ if __name__ == '__main__':
         print(s_ind, t_ind)
         print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in a.a[i]])
         print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in a.c[i][s_ind: t_ind + 1]])
-

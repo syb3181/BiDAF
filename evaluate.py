@@ -87,7 +87,7 @@ if __name__ == '__main__':
     logging.info("Creating the dataset...")
 
     # load data
-    data_loader = DataLoader(args.data_dir, params)
+    data_loader = DataLoader(args.test_data_path, params)
     data = data_loader.load_data(args.test_data_path)
     test_data_iterator = data_loader.data_iterator(split='dev', batch_size=params.batch_size)
 
