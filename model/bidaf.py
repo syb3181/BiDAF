@@ -118,13 +118,13 @@ class Model(nn.Module):
             x = torch.cat([c, c2q_att, c * c2q_att, c * q2c_att], dim=-1)
             return x
 
-        (context_word, c_lens), context_char = batch.c, batch.c_char.cuda()
-        (query_word, q_lens), query_char = batch.q, batch.q_char.cuda()
+        (context_word, c_lens), context_char = batch['c_word'], batch['c_char']
+        (query_word, q_lens), query_char = batch['q_word'], batch['q_char']
 
         # B x T x 2E
-        c = self.embedding_layer(context_word.cuda(), context_char.cuda(), c_lens)
+        c = self.embedding_layer(context_word, context_char, c_lens)
         # B x J x 2E
-        q = self.embedding_layer(query_word.cuda(), query_char.cuda(), q_lens)
+        q = self.embedding_layer(query_word, query_char, q_lens)
         # B x T
         c_mask = length_to_mask(c_lens).cuda()
         q_mask = length_to_mask(q_lens).cuda()

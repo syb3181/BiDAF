@@ -1,17 +1,10 @@
 import json
-import nltk
-import random
-
-import numpy as np
+import torch
 
 from torchtext.data import Field
-from torchtext.data import Dataset
-from torchtext.data import Example
-from torchtext.data import BucketIterator
 
 from utils.model_utils import Params
-
-random.seed(1110)
+from utils.func_utils import random_shuffle
 
 
 class DataLoader(object):
@@ -30,56 +23,33 @@ class DataLoader(object):
         self.params = params
         self.__build_text_field()
         self.dataset = {}
+        self.shuffler = None
         params.word_vocab_size = len(self.WORD_TEXT_FIELD.vocab.itos)
         params.char_vocab_size = len(self.CHAR_TEXT_FIELD.vocab.itos)
         params.word_vocab = self.WORD_TEXT_FIELD.vocab.itos
 
-    @staticmethod
-    def word_level_tokenize(text):
-        return sum(list(map(nltk.word_tokenize, nltk.sent_tokenize(text))), [])
-
-    def char_level_tokenize(self, text):
-        return sum([
-            [y for y in x[:self.params.max_word_len]] + ['<PAD>'] * (self.params.max_word_len - len(x))
-            for x in DataLoader.word_level_tokenize(text)
-        ], [])
-
-    @staticmethod
-    def __find_ind_in_tk_list(tk_list, target: str):
-        target = target.replace(' ', '')
-        for i in range(len(tk_list)):
-            s = tk_list[i]
-            j = i + 1
-            while j < len(tk_list) and target.startswith(s + tk_list[j]):
-                s = s + tk_list[j]
-                j += 1
-            if target == s:
-                return i, j - 1
-        return -1, -1
-
     def __build_text_field(self):
         self.WORD_TEXT_FIELD = Field(
+            tokenize=(lambda s: s.split()),
             sequential=True,
             use_vocab=True,
             batch_first=True,
-            tokenize=self.word_level_tokenize,
+            lower=True,
             include_lengths=True
         )
         self.CHAR_TEXT_FIELD = Field(
             sequential=True,
             use_vocab=True,
             batch_first=True,
-            tokenize=self.char_level_tokenize
+            lower=True
         )
-        self.INDEX_FIELD = Field(sequential=False, use_vocab=False, is_target=True)
-        self.example_data_fields = {
-            'c': ('c', self.WORD_TEXT_FIELD),
-            'q': ('q', self.WORD_TEXT_FIELD),
-            'a': ('a', self.WORD_TEXT_FIELD),
-            'c_char': ('c_char', self.CHAR_TEXT_FIELD),
-            'q_char': ('q_char', self.CHAR_TEXT_FIELD),
-            'ans_ind': ('ans_ind', self.INDEX_FIELD)
+        self.tensor_fields = {
+            'c_word':  self.WORD_TEXT_FIELD,
+            'q_word':  self.WORD_TEXT_FIELD,
+            'c_char':  self.CHAR_TEXT_FIELD,
+            'q_char':  self.CHAR_TEXT_FIELD,
         }
+        self.other_fields = ['c', 'q', 'a', 'ans_ind']
         with open(self.params.word_vocab_path, 'r', encoding='utf-8') as f:
             token_list = [word for word in f.read().splitlines()]
             self.WORD_TEXT_FIELD.build_vocab([token_list])
@@ -87,90 +57,89 @@ class DataLoader(object):
             token_list = [word for word in f.read().splitlines()]
             self.CHAR_TEXT_FIELD.build_vocab([token_list])
 
-    def __article_to_examples(self, article: dict):
-        ret = []
-        answer_not_found_in_context, answer_tot = 0, 0
-        paragraphs = article['paragraphs']
-        for i, paragraph in enumerate(paragraphs):
-            context = paragraph['context']
-            qas = paragraph['qas']
-            for qa in qas:
-                query = qa['question']
-                # normalize quote
-                context = context.replace("''", '" ').replace("``", '" ')
-                query = query.replace("''", '" ').replace("``", '" ')
-                for answer in qa['answers']:
-                    tc = DataLoader.word_level_tokenize(context)
-                    s_ind, t_ind = DataLoader.__find_ind_in_tk_list(tc, answer['text'])
-                    answer_tot += 1
-                    if s_ind < 0:
-                        print(answer)
-                        print(tc)
-                        answer_not_found_in_context += 1
-                        continue
-                    data = {
-                        'c': context,
-                        'q': query,
-                        'a': answer['text'],
-                        'c_char': context,
-                        'q_char': query,
-                        'ans_ind': (s_ind, t_ind),
-                    }
-                    ret.append(Example.fromdict(data, self.example_data_fields))
-        print('{}/{} answer not found in context!'.format(answer_not_found_in_context, answer_tot))
-        return ret
+    def load_data(self, data_path, split='all', size_limit=-1):
+        with open(data_path, 'r', encoding='utf-8') as f:
+            examples = json.load(f)
+            self.dataset[split] = examples if size_limit == -1 else examples[:size_limit]
 
-    def load_data(self, data_path, split='all'):
-        examples = self.__load_data(data_path)
-        self.dataset[split] = Dataset(
-            examples=examples,
-            fields=[v for k, v in self.example_data_fields.items()]
-        )
-
-    def split_data(self):
+    def split_data(self, split_ratio=0.8, shuffle=False):
         assert 'all' in self.dataset, "Load data to tab all first!"
-        self.dataset['train'], self.dataset['val'] = self.dataset['all'].split(
-            split_ratio=self.params.split_ratio,
-            random_state=random.getstate()
-        )
+        dataset = self.dataset['all']
+        if shuffle:
+            random_shuffle(dataset)
+        board = int(len(dataset) * split_ratio)
+        self.dataset['train'], self.dataset['val'] = dataset[:board], dataset[board:]
 
     def get_dataset_size(self, split):
         assert split in self.dataset, "Tab {} is not loaded!".format(split)
-        return len(self.dataset[split].examples)
+        return len(self.dataset[split])
 
-    def __load_data(self, data_path):
-        examples = []
-        with open(data_path, 'r', encoding='utf-8') as f:
-            a = json.load(f)
-            articles = a['data']
-            for article in articles:
-                examples += self.__article_to_examples(article)
-        return examples
+    def data_iterator(self, split, batch_size, shuffle=False):
+        """
+        Returns a generator that yields batches data with labels. Batch size is params.batch_size. Expires after one
+        pass over the data.
+        Args:
+            data: (dict) contains data which has keys 'data', 'labels' and 'size'
+            params: (Params) hyperparameters of the training process.
+            shuffle: (bool) whether the data should be shuffled
+        Yields:
+            batch_data: (Variable) dimension batch_size x seq_len with the sentence data
+            batch_labels: (Variable) dimension batch_size x seq_len with the corresponding labels
+        """
+        assert split in self.dataset, "Tab {} do not exist.".format(split)
+        data = self.dataset[split]
 
-    def data_iterator(self, split, batch_size):
-        return iter(BucketIterator(self.dataset[split], batch_size=batch_size))
+        # make a list that decides the order in which we go over the data- this avoids explicit shuffling of data
+        order = list(range(len(data)))
+        if shuffle:
+            random_shuffle(order)
+
+        # one pass over data
+        for i in range((len(data) + 1) // batch_size):
+            # fetch sentences and tags
+            data_batch = [data[idx] for idx in order[i * batch_size:(i + 1) * batch_size]]
+            batch = {}
+            # batch tensor fields
+            for field, TEXT_FIELD in self.tensor_fields.items():
+                field_batch = [TEXT_FIELD.preprocess(data[field]) for data in data_batch]
+                field_batch = TEXT_FIELD.pad(field_batch)
+                field_batch = TEXT_FIELD.numericalize(field_batch)
+                if torch.cuda.is_available():
+                    if field_batch is torch.Tensor:
+                        field_batch = field_batch.cuda()
+                    if field_batch is tuple:
+                        field_batch = [x.cuda() for x in field_batch]
+                batch[field] = field_batch
+            # batch other fields:
+            for field in self.other_fields:
+                field_batch = [data[field] for data in data_batch]
+                batch[field] = field_batch
+            yield batch
 
 
 if __name__ == '__main__':
     params = Params('../data/dataset_configs.json')
     data_loader = DataLoader(params)
-    data_path = '../data/train/small.json'
+    data_path = '../data/train/train_data.json'
     data_loader.load_data(data_path, 'all')
     data_loader.split_data()
-    batch_size = 4
+    batch_size = 8
     it = data_loader.data_iterator('train', batch_size=batch_size)
     a = next(it)
-    c, c_lens = a.c
-    c_char = a.c_char
+    c, c_lens = a['c_word']
+    query, ans = a['q'], a['a']
+    c_char = a['c_char']
     print(c.size())
     print(c_char.size())
-    z = a.c_char.view((batch_size, -1, params.max_word_len))
+    z = c_char.view((batch_size, -1, params.max_word_len))
     print(z.size())
-    for i in range(4):
-        tk_list = a.c[i]
-        ans_ind = a.ans_ind[i]
-        print(ans_ind)
-        s_ind, t_ind = ans_ind.numpy()
+    for i in range(batch_size):
+        print('-'*100)
+        print(i)
+        tk_list = c[i]
+        ans_ind = a['ans_ind'][i]
+        s_ind, t_ind = ans_ind
         print(s_ind, t_ind)
-        print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in a.a[i]])
-        print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in a.c[i][s_ind: t_ind + 1]])
+        print(query[i])
+        print("Answer: {}".format(ans[i]))
+        print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in c[i][s_ind: t_ind + 1]])

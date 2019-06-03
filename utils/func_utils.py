@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import torch
 import torch.nn.functional as F
 
@@ -64,3 +65,8 @@ def masked_softmax(logits, mask, dim=-1, log_softmax=False):
     softmax_fn = F.log_softmax if log_softmax else F.softmax
     probs = softmax_fn(masked_logits, dim)
     return probs
+
+
+def random_shuffle(data, random_state=230):
+    random.seed(random_state)
+    random.shuffle(data)

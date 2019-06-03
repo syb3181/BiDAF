@@ -21,6 +21,7 @@ parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before \
                     training")  # 'best' or 'train'
 parser.add_argument('--train_data_file_name', default='train-v1.1.json')
+parser.add_argument('--dataset_size_limit', default=60)
 
 
 def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
@@ -47,7 +48,7 @@ def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
     for i in t:
         # fetch the next training batch
         batch = next(data_iterator)
-        labels_batch = batch.ans_ind
+        labels_batch = batch['ans_ind']
 
         # compute model output and loss
         output_batch = model(batch)
@@ -166,11 +167,14 @@ if __name__ == '__main__':
     logging.info("Loading the datasets...")
 
     # load data
-    data_loader = DataLoader(os.path.join(args.data_dir, 'train', args.train_data_file_name), params)
+    data_loader = DataLoader(params)
+    train_data_path = os.path.join(args.data_dir, 'train', 'train_data.json')
+    data_loader.load_data(train_data_path)
+    data_loader.split_data(split_ratio=params.split_ratio)
 
     # specify the train and val dataset sizes( append in data_loader
-    # params.train_size = train_data['size']
-    # params.val_size = val_data['size']
+    params.train_size = data_loader.get_dataset_size('train')
+    params.val_size = data_loader.get_dataset_size('val')
 
     logging.info("- done.")
 
@@ -186,5 +190,4 @@ if __name__ == '__main__':
 
     # Train the model
     logging.info("Starting training for {} epoch(s)".format(params.num_epochs))
-    train_and_evaluate(model, data_loader, optimizer, loss_fn, metrics, params, args.model_dir,
-                       args.restore_file)
+    train_and_evaluate(model, data_loader, optimizer, loss_fn, metrics, params, args.model_dir, args.restore_file)
