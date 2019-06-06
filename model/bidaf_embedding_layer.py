@@ -33,9 +33,9 @@ class BiDAFEmbeddingLayer(nn.Module):
             out_channels=params.char_cnn_output_channels,
             kernel_size=(params.char_embedding_dim, params.char_cnn_channel_width)
         )
-        self.highway_network = HighwayEncoder(2, params.embedding_lstm_input_size - 10)
+        self.highway_network = HighwayEncoder(2, params.embedding_lstm_input_size)
         self.lstm = MaskedLSTMEncoder(
-            input_size=params.embedding_lstm_input_size - 10,
+            input_size=params.embedding_lstm_input_size,
             hidden_size=params.bidaf_embedding_dim,
             batch_first=True,
             bidirectional=True,
@@ -84,8 +84,8 @@ class BiDAFEmbeddingLayer(nn.Module):
         # B x L x CO
         char_e = char_embedding_layer(x_char)
         # B x L x (E + CO)
-        lstm_input = word_e
-        # lstm_input = torch.cat((word_e, char_e), dim=2)
+        # lstm_input = word_e
+        lstm_input = torch.cat((word_e, char_e), dim=2)
         lstm_input = self.highway_network(lstm_input)
         lstm_output = self.lstm(lstm_input, x_lens)
         return lstm_output
