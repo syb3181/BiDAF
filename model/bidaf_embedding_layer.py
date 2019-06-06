@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from utils.func_utils import load_embedding_dict
 from utils.func_utils import build_embedding_matrix
-from model.highway_network import HighwayNetwork
+from model.layers import HighwayEncoder
+from model.layers import MaskedLSTMEncoder
 
 
 class BiDAFEmbeddingLayer(nn.Module):
@@ -19,7 +20,7 @@ class BiDAFEmbeddingLayer(nn.Module):
         )
         embedding_dict = load_embedding_dict(params.word_embedding_path)
         w = build_embedding_matrix(embedding_dict, params.word_vocab)
-        self.word_embedding.from_pretrained(torch.from_numpy(w).cuda(), freeze=True)
+        self.word_embedding.from_pretrained(torch.from_numpy(w).cuda(), freeze=False)
         # char level
         self.char_embedding = nn.Embedding(
             padding_idx=1,
@@ -32,17 +33,14 @@ class BiDAFEmbeddingLayer(nn.Module):
             out_channels=params.char_cnn_output_channels,
             kernel_size=(params.char_embedding_dim, params.char_cnn_channel_width)
         )
-        # highway
-        self.highway_network = HighwayNetwork(dim=params.embedding_lstm_input_size)
-        # self.highway_network = HighwayNetwork(dim=100)
-        # lstm
-        self.lstm_dropout = nn.Dropout(params.embedding_lstm_dropout)
-        self.lstm = nn.LSTM(
-            input_size=params.embedding_lstm_input_size,
-            # input_size=params.word_embedding_dim,
+        self.highway_network = HighwayEncoder(2, params.embedding_lstm_input_size - 10)
+        self.lstm = MaskedLSTMEncoder(
+            input_size=params.embedding_lstm_input_size - 10,
             hidden_size=params.bidaf_embedding_dim,
             batch_first=True,
-            bidirectional=True
+            bidirectional=True,
+            num_layers=1,
+            dropout=params.embedding_lstm_dropout
         )
 
     def forward(self, x_word, x_char, x_lens):
@@ -86,10 +84,8 @@ class BiDAFEmbeddingLayer(nn.Module):
         # B x L x CO
         char_e = char_embedding_layer(x_char)
         # B x L x (E + CO)
-        lstm_input = torch.cat((word_e, char_e), dim=2)
+        lstm_input = word_e
+        # lstm_input = torch.cat((word_e, char_e), dim=2)
         lstm_input = self.highway_network(lstm_input)
-        lstm_input = self.lstm_dropout(lstm_input)
-        lstm_input = torch.nn.utils.rnn.pack_padded_sequence(lstm_input, x_lens, enforce_sorted=False, batch_first=True)
-        lstm_output, _ = self.lstm(lstm_input)
-        lstm_output, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_output, batch_first=True)
+        lstm_output = self.lstm(lstm_input, x_lens)
         return lstm_output

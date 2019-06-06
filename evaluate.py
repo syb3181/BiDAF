@@ -9,7 +9,7 @@ import torch
 import utils
 import model.bidaf as net
 from model.data_loader import DataLoader
-
+from tqdm import trange
 
 def evaluate(model, loss_fn, data_iterator, metrics, params, num_steps):
     """Evaluate the model on `num_steps` batches.
@@ -29,10 +29,10 @@ def evaluate(model, loss_fn, data_iterator, metrics, params, num_steps):
     summ = []
 
     # compute metrics over the dataset
-    for _ in range(num_steps):
+    for _ in trange(num_steps):
         # fetch the next training batch
         batch = next(data_iterator)
-        labels_batch = batch.ans_ind
+        labels_batch = batch['q1'], batch['q2']
 
         # compute model output and loss
         output_batch = model(batch)
@@ -43,7 +43,6 @@ def evaluate(model, loss_fn, data_iterator, metrics, params, num_steps):
         # extract data from torch Variable, move to cpu, convert to numpy arrays
         p1, p2 = output_batch
         output_batch = (p1.cpu().detach().numpy(), p2.cpu().detach().numpy())
-        labels_batch = labels_batch.cpu().numpy()
 
         # compute all metrics on this batch
         summary_batch = {metric: metrics[metric](output_batch, labels_batch)

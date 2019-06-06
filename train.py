@@ -20,8 +20,7 @@ parser.add_argument('--model_dir', default='model_dir', help="Directory containi
 parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before \
                     training")  # 'best' or 'train'
-parser.add_argument('--train_data_file_name', default='train-v1.1.json')
-parser.add_argument('--dataset_size_limit', default=60)
+parser.add_argument('--dataset_size_limit', type=int, default=-1)
 
 
 def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
@@ -48,7 +47,7 @@ def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
     for i in t:
         # fetch the next training batch
         batch = next(data_iterator)
-        labels_batch = batch['ans_ind']
+        labels_batch = batch['q1'], batch['q2']
 
         # compute model output and loss
         output_batch = model(batch)
@@ -66,7 +65,6 @@ def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
             # extract data from torch Variable, move to cpu, convert to numpy arrays
             p1, p2 = output_batch
             output_batch = (p1.cpu().detach().numpy(), p2.cpu().detach().numpy())
-            labels_batch = labels_batch.cpu().numpy()
 
             # compute all metrics on this batch
             summary_batch = {metric: metrics[metric](output_batch, labels_batch)
@@ -169,8 +167,10 @@ if __name__ == '__main__':
     # load data
     data_loader = DataLoader(params)
     train_data_path = os.path.join(args.data_dir, 'train', 'train_data.json')
-    data_loader.load_data(train_data_path)
-    data_loader.split_data(split_ratio=params.split_ratio)
+    data_loader.load_data(train_data_path, split='train', size_limit=args.dataset_size_limit)
+    # data_loader.split_data(split_ratio=params.split_ratio)
+    val_data_path = os.path.join(args.data_dir, 'val', 'val_data.json')
+    data_loader.load_data(val_data_path, 'val')
 
     # specify the train and val dataset sizes( append in data_loader
     params.train_size = data_loader.get_dataset_size('train')

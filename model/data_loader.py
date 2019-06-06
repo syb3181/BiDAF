@@ -49,7 +49,7 @@ class DataLoader(object):
             'c_char':  self.CHAR_TEXT_FIELD,
             'q_char':  self.CHAR_TEXT_FIELD,
         }
-        self.other_fields = ['c', 'q', 'a', 'ans_ind']
+        self.other_fields = ['c', 'q', 'a', 'q1', 'q2']
         with open(self.params.word_vocab_path, 'r', encoding='utf-8') as f:
             token_list = [word for word in f.read().splitlines()]
             self.WORD_TEXT_FIELD.build_vocab([token_list])
@@ -105,9 +105,9 @@ class DataLoader(object):
                 field_batch = TEXT_FIELD.pad(field_batch)
                 field_batch = TEXT_FIELD.numericalize(field_batch)
                 if torch.cuda.is_available():
-                    if field_batch is torch.Tensor:
+                    if type(field_batch) == torch.Tensor:
                         field_batch = field_batch.cuda()
-                    if field_batch is tuple:
+                    if type(field_batch) == tuple:
                         field_batch = [x.cuda() for x in field_batch]
                 batch[field] = field_batch
             # batch other fields:
@@ -121,25 +121,22 @@ if __name__ == '__main__':
     params = Params('../data/dataset_configs.json')
     data_loader = DataLoader(params)
     data_path = '../data/train/train_data.json'
-    data_loader.load_data(data_path, 'all')
+    data_loader.load_data(data_path, 'all', size_limit=50)
     data_loader.split_data()
-    batch_size = 8
+    batch_size = 16
     it = data_loader.data_iterator('train', batch_size=batch_size)
     a = next(it)
     c, c_lens = a['c_word']
+    q, q_lens = a['q_word']
     query, ans = a['q'], a['a']
     c_char = a['c_char']
-    print(c.size())
-    print(c_char.size())
-    z = c_char.view((batch_size, -1, params.max_word_len))
-    print(z.size())
     for i in range(batch_size):
         print('-'*100)
         print(i)
         tk_list = c[i]
-        ans_ind = a['ans_ind'][i]
-        s_ind, t_ind = ans_ind
+        s_ind, t_ind = a['q1'][i], a['q2'][i]
         print(s_ind, t_ind)
-        print(query[i])
+        print("Query: {}".format(query[i]))
+        print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in q[i]])
         print("Answer: {}".format(ans[i]))
         print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in c[i][s_ind: t_ind + 1]])

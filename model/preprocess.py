@@ -84,12 +84,16 @@ class SquadPreprocessor:
         for i, paragraph in enumerate(paragraphs):
             context = paragraph['context'].replace("''", '" ').replace("``", '" ')
             word_context = word_level_tokenize(context)
+            if len(word_context) > params.max_context_len:
+                continue
             char_context = char_level_tokenize(context)
             context_spans = get_spans(context, word_context)
             qas = paragraph['qas']
             for qa in qas:
                 query = qa['question'].replace("''", '" ').replace("``", '" ')
                 word_query = word_level_tokenize(query)
+                if len(word_query) > params.max_query_len:
+                    continue
                 char_query = char_level_tokenize(query)
                 for answer in qa['answers']:
                     answer_start = answer['answer_start']
@@ -105,7 +109,8 @@ class SquadPreprocessor:
                         'q_word': ' '.join(word_query),
                         'c_char': ' '.join(char_context),
                         'q_char': ' '.join(char_query),
-                        'ans_ind': (s_ind, t_ind),
+                        'q1': s_ind,
+                        'q2': t_ind
                     }
                     ret.append(data)
         return ret
