@@ -20,7 +20,7 @@ parser.add_argument('--model_dir', default='model_dir', help="Directory containi
 parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before \
                     training")  # 'best' or 'train'
-parser.add_argument('--dataset_size_limit', type=int, default=3000)
+parser.add_argument('--dataset_size_limit', type=int, default=-1)
 
 
 def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
