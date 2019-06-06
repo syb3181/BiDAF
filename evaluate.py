@@ -11,6 +11,7 @@ import model.bidaf as net
 from model.data_loader import DataLoader
 from tqdm import trange
 
+
 def evaluate(model, loss_fn, data_iterator, metrics, params, num_steps):
     """Evaluate the model on `num_steps` batches.
     Args:
@@ -45,7 +46,7 @@ def evaluate(model, loss_fn, data_iterator, metrics, params, num_steps):
         output_batch = (p1.cpu().detach().numpy(), p2.cpu().detach().numpy())
 
         # compute all metrics on this batch
-        summary_batch = {metric: metrics[metric](output_batch, labels_batch)
+        summary_batch = {metric: metrics[metric](output_batch, batch)
                          for metric in metrics}
         summary_batch['loss'] = loss.item()
         summ.append(summary_batch)
@@ -100,7 +101,10 @@ if __name__ == '__main__':
     model = net.Net(params).cuda() if params.cuda else net.Net(params)
 
     loss_fn = net.loss_fn
-    metrics = net.metrics
+    metrics = {
+        'EM': model.exact_match_score,
+        'f1': model.f1_score
+    }
 
     logging.info("Starting evaluation")
 

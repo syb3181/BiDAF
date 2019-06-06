@@ -15,12 +15,12 @@ from model.data_loader import DataLoader
 from evaluate import evaluate
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_dir', default='data', help="Directory containing the dataset")
+parser.add_argument('--data_dir', default='tmp_data', help="Directory containing the dataset")
 parser.add_argument('--model_dir', default='model_dir', help="Directory containing params.json")
 parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before \
                     training")  # 'best' or 'train'
-parser.add_argument('--dataset_size_limit', type=int, default=-1)
+parser.add_argument('--dataset_size_limit', type=int, default=3000)
 
 
 def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
@@ -67,7 +67,7 @@ def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
             output_batch = (p1.cpu().detach().numpy(), p2.cpu().detach().numpy())
 
             # compute all metrics on this batch
-            summary_batch = {metric: metrics[metric](output_batch, labels_batch)
+            summary_batch = {metric: metrics[metric](output_batch, batch)
                              for metric in metrics}
             summary_batch['loss'] = loss.item()
             summ.append(summary_batch)
@@ -117,7 +117,7 @@ def train_and_evaluate(model, data_loader, optimizer, loss_fn, metrics, params, 
         val_data_iterator = data_loader.data_iterator(split='val', batch_size=params.batch_size)
         val_metrics = evaluate(model, loss_fn, val_data_iterator, metrics, params, num_steps)
 
-        val_acc = val_metrics['acc']
+        val_acc = val_metrics['EM']
         is_best = val_acc >= best_val_acc
 
         # Save weights
@@ -170,7 +170,7 @@ if __name__ == '__main__':
     data_loader.load_data(train_data_path, split='train', size_limit=args.dataset_size_limit)
     # data_loader.split_data(split_ratio=params.split_ratio)
     val_data_path = os.path.join(args.data_dir, 'val', 'val_data.json')
-    data_loader.load_data(val_data_path, 'val')
+    data_loader.load_data(val_data_path, 'val', size_limit=args.dataset_size_limit)
 
     # specify the train and val dataset sizes( append in data_loader
     params.train_size = data_loader.get_dataset_size('train')
@@ -185,7 +185,8 @@ if __name__ == '__main__':
     # fetch loss function and metrics
     loss_fn = model.loss_fn
     metrics = {
-        'acc': model.accuracy
+        'EM': model.exact_match_score,
+        'f1': model.f1_score
     }
 
     # Train the model

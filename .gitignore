@@ -10,3 +10,4 @@ output/*
 *.jar
 tmp/*
 model_dir/*
+tmp_data/*

@@ -9,7 +9,7 @@ import os
 from utils.model_utils import Params
 
 parser = argparse.ArgumentParser(description='Generate dataset!')
-parser.add_argument('--data_dir', default='../data')
+parser.add_argument('--data_dir', default='../tmp_data')
 ns = parser.parse_args()
 params = Params(os.path.join(ns.data_dir, 'dataset_configs.json'))
 
@@ -66,7 +66,7 @@ def find_index_range(spans, answer_start, answer_end):
 class SquadPreprocessor:
 
     def __init__(self):
-        pass
+        self.multi_answer_question = 0
 
     def process_file(self, file_path):
         examples = []
@@ -77,8 +77,7 @@ class SquadPreprocessor:
                     examples += self.__article_to_examples(article)
             return examples
 
-    @staticmethod
-    def __article_to_examples(article: dict):
+    def __article_to_examples(self, article: dict):
         ret = []
         paragraphs = article['paragraphs']
         for i, paragraph in enumerate(paragraphs):
@@ -95,30 +94,41 @@ class SquadPreprocessor:
                 if len(word_query) > params.max_query_len:
                     continue
                 char_query = char_level_tokenize(query)
+                if len(qa['answers']) > 1:
+                    self.multi_answer_question += 1
+                q1s, q2s, gts = [], [], []
                 for answer in qa['answers']:
                     answer_start = answer['answer_start']
                     answer_end = answer_start + len(answer['text'])
-                    s_ind, t_ind = find_index_range(context_spans, answer_start, answer_end)
-                    if s_ind < 0:
+                    q1, q2 = find_index_range(context_spans, answer_start, answer_end)
+                    if q1 < 0:
                         raise RuntimeError('Answer not found!')
-                    data = {
-                        'c': context,
-                        'q': query,
-                        'a': answer['text'],
-                        'c_word': ' '.join(word_context),
-                        'q_word': ' '.join(word_query),
-                        'c_char': ' '.join(char_context),
-                        'q_char': ' '.join(char_query),
-                        'q1': s_ind,
-                        'q2': t_ind
-                    }
-                    ret.append(data)
+                    gts.append(answer['text'])
+                    q1s.append(q1)
+                    q2s.append(q2)
+                data = {
+                    'c': context,
+                    'q': query,
+                    'a': gts[0],
+                    'c_word': ' '.join(word_context),
+                    'q_word': ' '.join(word_query),
+                    'c_char': ' '.join(char_context),
+                    'q_char': ' '.join(char_query),
+                    'q1': q1s[-1],
+                    'q2': q2s[-1],
+                    'gts': gts,
+                    'q1s': q1s,
+                    'q2s': q2s,
+                    'tkd_c': word_context
+                }
+                ret.append(data)
         return ret
 
 
 if __name__ == '__main__':
     processor = SquadPreprocessor()
     train_data = processor.process_file('../raw_data/train-v1.1.json')
+    assert processor.multi_answer_question == 0, "Train data question has multiple answer!"
     val_data = processor.process_file('../raw_data/dev-v1.1.json')
     with open(os.path.join(ns.data_dir, 'train', 'train_data.json'), 'w', encoding='utf-8') as f_train:
         json.dump(train_data, f_train)
