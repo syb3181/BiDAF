@@ -1,0 +1,8 @@
+{
+  "word_vocab_path": "/home/shengyibin/PycharmProjects/BiDAF/tmp_data/words.txt",
+  "char_vocab_path": "/home/shengyibin/PycharmProjects/BiDAF/tmp_data/chars.txt",
+  "split_ratio": 0.8,
+  "max_word_len": 20,
+  "max_context_len": 400,
+  "max_query_len": 50
+}

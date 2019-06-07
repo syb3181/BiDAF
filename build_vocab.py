@@ -44,10 +44,10 @@ def update_vocab(txt_path, vocab):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--embedding_dict_path', default='model_dir/glove.6B.100d.txt')
-    parser.add_argument('--words_path', default='data/words.txt')
-    parser.add_argument('--chars_path', default='data/chars.txt')
-    parser.add_argument('--config_file_path', default='data/dataset_configs.json')
+    parser.add_argument('--embedding_dict_path', default='model_dir/glove.6B.300d.txt')
+    parser.add_argument('--words_path', default='tmp_data/words.txt')
+    parser.add_argument('--chars_path', default='tmp_data/chars.txt')
+    parser.add_argument('--config_file_path', default='tmp_data/dataset_configs.json')
     ns = parser.parse_args()
     words = set()
     chars = set()

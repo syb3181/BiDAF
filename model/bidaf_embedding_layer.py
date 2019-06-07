@@ -27,7 +27,8 @@ class BiDAFEmbeddingLayer(nn.Module):
             embedding_dim=params.char_embedding_dim,
             num_embeddings=params.char_vocab_size
         )
-        self.dropout = nn.Dropout(params.char_cnn_dropout)
+        self.word_embedding_dropout = nn.Dropout(params.word_embedding_dropout)
+        self.char_embedding_dropout = nn.Dropout(params.char_embedding_dropout)
         self.char_conv = nn.Conv2d(
             in_channels=1,
             out_channels=params.char_cnn_output_channels,
@@ -80,7 +81,7 @@ class BiDAFEmbeddingLayer(nn.Module):
         CE = self.params.char_embedding_dim
         CO = self.params.char_cnn_output_channels
         # B x L x E
-        word_e = self.word_embedding(x_word)
+        word_e = self.word_embedding_dropout(self.word_embedding(x_word))
         # B x L x CO
         char_e = char_embedding_layer(x_char)
         # B x L x (E + CO)
