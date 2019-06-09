@@ -8,7 +8,6 @@ from model.layers import MaskedLSTMEncoder
 from model.layers import BiDAFOutput
 from model.bidaf_embedding_layer import BiDAFEmbeddingLayer
 from utils.func_utils import length_to_mask
-from utils.func_utils import masked_softmax
 
 from model.eval_func import outputs_to_preds
 from model.eval_func import preds_to_answers

@@ -11,7 +11,7 @@ class BiDAFEmbeddingLayer(nn.Module):
     def __init__(self, params):
         super().__init__()
         hidden_size = params.hidden_size
-        self.word_embedding = nn.Embedding(params.word_vocab_size, params.word_embedding_dim, 1)
+        self.word_embedding = nn.Embedding(params.word_vocab_size, params.word_embedding_dim, padding_idx=1)
         self.__load_embedding(params)
         self.word_embedding_dropout = nn.Dropout(params.dropout)
         self.embedding_dim = params.word_embedding_dim
