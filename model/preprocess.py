@@ -4,6 +4,7 @@ This script is used for the generation of torchtext friendly dataset.
 
 import argparse
 import json
+# import spacy
 import nltk
 import os
 from utils.model_utils import Params
@@ -12,6 +13,8 @@ parser = argparse.ArgumentParser(description='Generate dataset!')
 parser.add_argument('--data_dir', default='../tmp_data')
 ns = parser.parse_args()
 params = Params(os.path.join(ns.data_dir, 'dataset_configs.json'))
+
+# nlp = spacy.blank('en')
 
 
 def word_level_tokenize(text):

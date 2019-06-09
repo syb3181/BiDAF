@@ -6,6 +6,7 @@ import os
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from tqdm import trange
 
@@ -56,6 +57,9 @@ def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
         # clear previous gradients, compute gradients of all variables wrt loss
         optimizer.zero_grad()
         loss.backward()
+
+        # grad vector normalization
+        nn.utils.clip_grad_norm_(model.parameters(), params.max_grad_norm)
 
         # performs updates using calculated gradients
         optimizer.step()
@@ -117,7 +121,7 @@ def train_and_evaluate(model, data_loader, optimizer, loss_fn, metrics, params, 
         val_data_iterator = data_loader.data_iterator(split='val', batch_size=params.batch_size)
         val_metrics = evaluate(model, loss_fn, val_data_iterator, metrics, params, num_steps)
 
-        val_acc = val_metrics['EM']
+        val_acc = val_metrics['f1']
         is_best = val_acc >= best_val_acc
 
         # Save weights
@@ -150,6 +154,7 @@ if __name__ == '__main__':
     params = utils.Params(json_path)
     dataset_json_path = os.path.join(args.data_dir, 'dataset_configs.json')
     params.update(dataset_json_path)
+    print(params)
 
     # use GPU if available
     params.cuda = torch.cuda.is_available()

@@ -118,9 +118,9 @@ class DataLoader(object):
 
 
 if __name__ == '__main__':
-    params = Params('../data/dataset_configs.json')
+    params = Params('../tmp_data/dataset_configs.json')
     data_loader = DataLoader(params)
-    data_path = '../data/train/train_data.json'
+    data_path = '../tmp_data/train/train_data.json'
     data_loader.load_data(data_path, 'all', size_limit=50)
     data_loader.split_data()
     batch_size = 16
