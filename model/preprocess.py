@@ -7,6 +7,7 @@ import json
 import spacy
 import nltk
 import os
+import tqdm
 from utils.model_utils import Params
 
 parser = argparse.ArgumentParser(description='Generate dataset!')
@@ -20,9 +21,15 @@ nlp = spacy.blank('en')
 def word_level_tokenize(text):
     return sum(list(map(nltk.word_tokenize, nltk.sent_tokenize(text))), [])
 
-# def word_level_tokenize(text):
-#     doc = nlp(text)
-#     return [token.text for token in doc]
+
+tk_list_path = os.path.join(ns.data_dir, 'words.txt')
+with open(tk_list_path, 'r', encoding='utf-8') as f:
+    token_set = set([line.strip() for line in f.readlines()])
+
+
+def spacy_word_level_tokenize(text):
+    doc = nlp(text)
+    return [token.text for token in doc if token.text != ' ']
 
 
 def char_level_tokenize(text):
@@ -40,8 +47,7 @@ def get_spans(text, tokens):
     current = 0
     spans = []
     for token in tokens:
-        if token == r"``" or token == r"''":
-            token = "\""
+        token = token.replace("''", '"').replace("``", '"')
         current = text.find(token, current)
         if current < 0:
             print("Token {} cannot be found".format(token))
@@ -80,7 +86,7 @@ class SquadPreprocessor:
         with open(file_path, 'r', encoding='utf-8') as f:
             a = json.load(f)
             articles = a['data']
-            for article in articles:
+            for article in tqdm.tqdm(articles):
                     examples += self.__article_to_examples(article)
             return examples
 
@@ -116,7 +122,7 @@ class SquadPreprocessor:
                 data = {
                     'c': context,
                     'q': query,
-                    'a': gts[0],
+                    'a': gts[-1],
                     'c_word': ' '.join(word_context),
                     'q_word': ' '.join(word_query),
                     'c_char': ' '.join(char_context),

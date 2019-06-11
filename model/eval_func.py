@@ -45,6 +45,11 @@ def metric_max_over_ground_truths(metric_fn, prediction, ground_truths):
     for ground_truth in ground_truths:
         score = metric_fn(prediction, ground_truth)
         scores_for_ground_truths.append(score)
+    # if max(scores_for_ground_truths) < 0.99 and verbose:
+    #     print('-' * 100)
+    #     print(prediction)
+    #     print(ground_truths)
+    #     print('-' * 100)
     return max(scores_for_ground_truths)
 
 

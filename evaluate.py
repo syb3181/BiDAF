@@ -6,7 +6,7 @@ import os
 
 import numpy as np
 import torch
-import utils
+import utils.model_utils as utils
 import model.bidaf as net
 from model.data_loader import DataLoader
 from tqdm import trange
@@ -63,13 +63,13 @@ if __name__ == '__main__':
         Evaluate the model on the test set.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test_data_path', default='data/dev/dev-v1.1.json', help="test data path")
+    parser.add_argument('--test_data_path', default='tmp_data/val/val_data.json', help="test data path")
     parser.add_argument('--model_dir', default='model_dir', help="Directory containing params.json")
     parser.add_argument('--restore_file', default='best', help="name of the file in --model_dir \
                          containing weights to load")
     # Load the parameters
     args = parser.parse_args()
-    json_path = os.path.join(args.model_dir, 'params.json')
+    json_path = os.path.join(args.model_dir, 'configs.json')
     assert os.path.isfile(json_path), "No json configuration file found at {}".format(json_path)
     params = utils.Params(json_path)
 
@@ -87,20 +87,20 @@ if __name__ == '__main__':
     logging.info("Creating the dataset...")
 
     # load data
-    data_loader = DataLoader(args.test_data_path, params)
+    print(params)
+    data_loader = DataLoader(params)
     data = data_loader.load_data(args.test_data_path)
-    test_data_iterator = data_loader.data_iterator(split='dev', batch_size=params.batch_size)
 
     # specify the test set size
-    # params.test_size = test_data['size']
-    # test_data_iterator = data_loader.data_iterator(test_data, params)
+    params.test_size = data_loader.get_dataset_size('all')
+    test_data_iterator = data_loader.data_iterator(split='all', batch_size=params.batch_size)
 
     logging.info("- done.")
 
     # Define the model
-    model = net.Net(params).cuda() if params.cuda else net.Net(params)
+    model = net.Model(params).cuda() if params.cuda else net.Model(params)
 
-    loss_fn = net.loss_fn
+    loss_fn = model.loss_fn
     metrics = {
         'EM': model.exact_match_score,
         'f1': model.f1_score

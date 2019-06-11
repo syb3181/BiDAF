@@ -130,6 +130,7 @@ if __name__ == '__main__':
     q, q_lens = a['q_word']
     query, ans = a['q'], a['a']
     c_char = a['c_char']
+    cnotexts = a['tkd_c']
     for i in range(batch_size):
         print('-'*100)
         print(i)
@@ -140,3 +141,4 @@ if __name__ == '__main__':
         print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in q[i]])
         print("Answer: {}".format(ans[i]))
         print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in c[i][s_ind: t_ind + 1]])
+        print(a['tkd_c'][i][s_ind: t_ind + 1])

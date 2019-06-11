@@ -185,7 +185,8 @@ if __name__ == '__main__':
 
     # Define the model and optimizer
     model = net.Model(params).cuda() if params.cuda else net.Model(params)
-    optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
+    # optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
+    optimizer = optim.Adadelta(model.parameters(), params.learning_rate)
 
     # fetch loss function and metrics
     loss_fn = model.loss_fn
