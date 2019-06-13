@@ -38,6 +38,7 @@ class DataLoader(object):
             include_lengths=True
         )
         self.CHAR_TEXT_FIELD = Field(
+            tokenize=(lambda s: s.split()),
             sequential=True,
             use_vocab=True,
             batch_first=True,
@@ -121,9 +122,9 @@ if __name__ == '__main__':
     params = Params('../tmp_data/dataset_configs.json')
     data_loader = DataLoader(params)
     data_path = '../tmp_data/train/train_data.json'
-    data_loader.load_data(data_path, 'all', size_limit=50)
+    data_loader.load_data(data_path, 'all', size_limit=200)
     data_loader.split_data()
-    batch_size = 16
+    batch_size = 128
     it = data_loader.data_iterator('train', batch_size=batch_size)
     a = next(it)
     c, c_lens = a['c_word']

@@ -30,7 +30,7 @@ class Model(nn.Module):
         self.embedding_layer = BiDAFEmbeddingLayer(params)
         # attention layer
         E = params.hidden_size
-        self.attention_layer = BiDAFAttention(hidden_size=E * 2)
+        self.attention_layer = BiDAFAttention(hidden_size=E * 2, drop_prob=params.dropout)
         # model layer
         self.lstm = MaskedLSTMEncoder(8 * E, E, True, True, 2, params.dropout)
         # output layer

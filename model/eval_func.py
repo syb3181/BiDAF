@@ -20,7 +20,7 @@ def normalize_answer(s):
     def lower(text):
         return text.lower()
 
-    return white_space_fix(remove_articles(remove_punc(lower(s))))
+    return white_space_fix(remove_articles(remove_punc(lower(s)))).replace(" ", "")
 
 
 def f1_score(prediction, ground_truth):
@@ -72,7 +72,7 @@ def preds_to_answers(preds, tkd_cs):
     return [' '.join(tkd_c[q1: q2 + 1]) for (q1, q2), tkd_c in zip(preds, tkd_cs)]
 
 
-def discretize(p_start, p_end, max_len=15, no_answer=False):
+def discretize(p_start, p_end, max_len=30, no_answer=False):
     """Discretize soft predictions to get start and end indices.
     Choose the pair `(i, j)` of indices that maximizes `p1[i] * p2[j]`
     subject to `i <= j` and `j - i + 1 <= max_len`.
@@ -130,3 +130,12 @@ def discretize(p_start, p_end, max_len=15, no_answer=False):
         end_idxs[p_no_answer > max_prob] = 0
 
     return start_idxs, end_idxs
+
+if __name__ == '__main__':
+    a = ['Saint', 'Mary', "'s", 'College']
+    answer = ' '.join(a)
+    gt = "Saint Mary's College"
+    z = exact_match_score(answer, gt)
+    print(normalize_answer(answer))
+    print(normalize_answer(gt))
+    print(z)
