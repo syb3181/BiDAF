@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import trange
+import torch.optim.lr_scheduler as sched
 
 import utils.model_utils as utils
 import model.bidaf as net
@@ -24,7 +25,7 @@ parser.add_argument('--restore_file', default=None,
 parser.add_argument('--dataset_size_limit', type=int, default=-1)
 
 
-def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
+def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps, ema):
     """Train the model on `num_steps` batches
     Args:
         model: (torch.nn.Module) the neural network
@@ -64,6 +65,9 @@ def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps):
         # performs updates using calculated gradients
         optimizer.step()
 
+        # ema
+        ema(model, i)
+
         # Evaluate summaries only once in a while
         if i % params.save_summary_steps == 0:
             # extract data from torch Variable, move to cpu, convert to numpy arrays
@@ -99,6 +103,7 @@ def train_and_evaluate(model, data_loader, optimizer, loss_fn, metrics, params, 
         model_dir: (string) directory containing config, weights and log
         restore_file: (string) optional- name of file to restore from (without its extension .pth.tar)
     """
+    ema = utils.EMA(model, params.ema_decay)
     # reload weights from restore_file if specified
     if restore_file is not None:
         restore_path = os.path.join(args.model_dir, args.restore_file + '.pth.tar')
@@ -114,9 +119,10 @@ def train_and_evaluate(model, data_loader, optimizer, loss_fn, metrics, params, 
         # compute number of batches in one epoch (one full pass over the training set)
         num_steps = (params.train_size + 1) // params.batch_size
         train_data_iterator = data_loader.data_iterator(split='train', batch_size=params.batch_size)
-        train(model, optimizer, loss_fn, train_data_iterator, metrics, params, num_steps)
+        train(model, optimizer, loss_fn, train_data_iterator, metrics, params, num_steps, ema)
 
         # Evaluate for one epoch on validation set
+        ema.assign(model)
         num_steps = (params.val_size + 1) // params.batch_size
         val_data_iterator = data_loader.data_iterator(split='val', batch_size=params.batch_size)
         val_metrics = evaluate(model, loss_fn, val_data_iterator, metrics, params, num_steps)
@@ -143,6 +149,7 @@ def train_and_evaluate(model, data_loader, optimizer, loss_fn, metrics, params, 
         # Save latest val metrics in a json file in the model directory
         last_json_path = os.path.join(model_dir, "metrics_val_last_weights.json")
         utils.save_dict_to_json(val_metrics, last_json_path)
+        ema.resume(model)
 
 
 if __name__ == '__main__':
@@ -187,6 +194,7 @@ if __name__ == '__main__':
     model = net.Model(params).cuda() if params.cuda else net.Model(params)
     # optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
     optimizer = optim.Adadelta(model.parameters(), params.learning_rate)
+    scheduler = sched.LambdaLR(optimizer, lambda s: 1.)  # Constant LR
 
     # fetch loss function and metrics
     loss_fn = model.loss_fn
