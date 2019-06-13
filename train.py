@@ -64,6 +64,7 @@ def train(model, optimizer, loss_fn, data_iterator, metrics, params, num_steps, 
 
         # performs updates using calculated gradients
         optimizer.step()
+        scheduler.step(i)
 
         # ema
         ema(model, i)
