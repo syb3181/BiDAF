@@ -5,7 +5,6 @@ This script is used for the generation of torchtext friendly dataset.
 import argparse
 import json
 import spacy
-import nltk
 import os
 import tqdm
 from utils.model_utils import Params
@@ -19,23 +18,8 @@ nlp = spacy.blank('en')
 
 
 def word_level_tokenize(text):
-    return sum(list(map(nltk.word_tokenize, nltk.sent_tokenize(text))), [])
-
-
-tk_list_path = os.path.join(ns.data_dir, 'words.txt')
-with open(tk_list_path, 'r', encoding='utf-8') as f:
-    token_set = set([line.strip() for line in f.readlines()])
-
-
-def spacy_word_level_tokenize(text):
     doc = nlp(text)
     return [token.text for token in doc if token.text != ' ']
-
-
-def char_level_tokenize(text):
-    return sum([
-        [y for y in x[:params.max_word_len]] + ['<PAD>'] * (params.max_word_len - len(x))
-        for x in word_level_tokenize(text)], [])
 
 
 def get_spans(text, tokens):
@@ -98,7 +82,6 @@ class SquadPreprocessor:
             word_context = word_level_tokenize(context)
             if len(word_context) > params.max_context_len:
                 continue
-            char_context = char_level_tokenize(context)
             context_spans = get_spans(context, word_context)
             qas = paragraph['qas']
             for qa in qas:
@@ -106,7 +89,6 @@ class SquadPreprocessor:
                 word_query = word_level_tokenize(query)
                 if len(word_query) > params.max_query_len:
                     continue
-                char_query = char_level_tokenize(query)
                 if len(qa['answers']) > 1:
                     self.multi_answer_question += 1
                 q1s, q2s, gts = [], [], []
@@ -123,16 +105,15 @@ class SquadPreprocessor:
                     'c': context,
                     'q': query,
                     'a': gts[-1],
-                    'c_word': ' '.join(word_context),
-                    'q_word': ' '.join(word_query),
-                    'c_char': ' '.join(char_context),
-                    'q_char': ' '.join(char_query),
+                    'c_word': '|'.join(word_context),
+                    'q_word': '|'.join(word_query),
                     'q1': q1s[-1],
                     'q2': q2s[-1],
                     'gts': gts,
                     'q1s': q1s,
                     'q2s': q2s,
-                    'tkd_c': word_context
+                    'tkd_c': word_context,
+                    'qaid': qa['id']
                 }
                 ret.append(data)
         return ret

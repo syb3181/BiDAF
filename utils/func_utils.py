@@ -67,6 +67,6 @@ def masked_softmax(logits, mask, dim=-1, log_softmax=False):
     return probs
 
 
-def random_shuffle(data, random_state=230):
-    random.seed(random_state)
+def random_shuffle(data, random_state=None):
+    random.seed(random.getstate() if random_state is None else random_state)
     random.shuffle(data)

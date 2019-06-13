@@ -51,8 +51,8 @@ class Model(nn.Module):
                 paragraph and the query
         """
 
-        (context_word, c_lens), context_char = batch['c_word'], batch['c_char']
-        (query_word, q_lens), query_char = batch['q_word'], batch['q_char']
+        context_word, c_lens = batch['c_word']
+        query_word, q_lens = batch['q_word']
 
         # B x T x 2E
         c = self.embedding_layer(context_word, c_lens)

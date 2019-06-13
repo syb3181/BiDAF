@@ -25,12 +25,11 @@ class DataLoader(object):
         self.dataset = {}
         self.shuffler = None
         params.word_vocab_size = len(self.WORD_TEXT_FIELD.vocab.itos)
-        params.char_vocab_size = len(self.CHAR_TEXT_FIELD.vocab.itos)
         params.word_vocab = self.WORD_TEXT_FIELD.vocab.itos
 
     def __build_text_field(self):
         self.WORD_TEXT_FIELD = Field(
-            tokenize=(lambda s: s.split()),
+            tokenize=(lambda s: s.split('|')),
             sequential=True,
             use_vocab=True,
             batch_first=True,
@@ -47,16 +46,11 @@ class DataLoader(object):
         self.tensor_fields = {
             'c_word':  self.WORD_TEXT_FIELD,
             'q_word':  self.WORD_TEXT_FIELD,
-            'c_char':  self.CHAR_TEXT_FIELD,
-            'q_char':  self.CHAR_TEXT_FIELD,
         }
         self.other_fields = ['c', 'q', 'a', 'q1', 'q2', 'gts', 'q1s', 'q2s', 'tkd_c']
         with open(self.params.word_vocab_path, 'r', encoding='utf-8') as f:
             token_list = [word for word in f.read().splitlines()]
             self.WORD_TEXT_FIELD.build_vocab([token_list])
-        with open(self.params.char_vocab_path, 'r', encoding='utf-8') as f:
-            token_list = [word for word in f.read().splitlines()]
-            self.CHAR_TEXT_FIELD.build_vocab([token_list])
 
     def load_data(self, data_path, split='all', size_limit=-1):
         with open(data_path, 'r', encoding='utf-8') as f:
@@ -75,7 +69,7 @@ class DataLoader(object):
         assert split in self.dataset, "Tab {} is not loaded!".format(split)
         return len(self.dataset[split])
 
-    def data_iterator(self, split, batch_size, shuffle=False):
+    def data_iterator(self, split, batch_size, shuffle=True):
         """
         Returns a generator that yields batches data with labels. Batch size is params.batch_size. Expires after one
         pass over the data.
@@ -122,24 +116,26 @@ if __name__ == '__main__':
     params = Params('../tmp_data/dataset_configs.json')
     data_loader = DataLoader(params)
     data_path = '../tmp_data/train/train_data.json'
-    data_loader.load_data(data_path, 'all', size_limit=200)
+    data_loader.load_data(data_path, 'all', size_limit=128)
     data_loader.split_data()
-    batch_size = 128
+    batch_size = 32
     it = data_loader.data_iterator('train', batch_size=batch_size)
-    a = next(it)
-    c, c_lens = a['c_word']
-    q, q_lens = a['q_word']
-    query, ans = a['q'], a['a']
-    c_char = a['c_char']
-    cnotexts = a['tkd_c']
-    for i in range(batch_size):
-        print('-'*100)
-        print(i)
-        tk_list = c[i]
-        s_ind, t_ind = a['q1'][i], a['q2'][i]
-        print(s_ind, t_ind)
-        print("Query: {}".format(query[i]))
-        print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in q[i]])
-        print("Answer: {}".format(ans[i]))
-        print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in c[i][s_ind: t_ind + 1]])
-        print(a['tkd_c'][i][s_ind: t_ind + 1])
+    for a in it:
+        c, c_lens = a['c_word']
+        q, q_lens = a['q_word']
+        context, query, ans = a['c'], a['q'], a['a']
+        contexts = a['tkd_c']
+        for i in range(batch_size):
+            print('-' * 100)
+            print(i)
+            tk_list = c[i]
+            s_ind, t_ind = a['q1'][i], a['q2'][i]
+            print("Context: {}".format(context[i]))
+            print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in c[i]])
+            print(s_ind, t_ind)
+            print("Query: {}".format(query[i]))
+            print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in q[i]])
+            print("Answer: {}".format(ans[i]))
+            print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in c[i][s_ind: t_ind + 1]])
+            print(a['tkd_c'][i][s_ind: t_ind + 1])
+
