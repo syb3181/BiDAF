@@ -1,10 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 from utils.func_utils import masked_softmax
-from utils.func_utils import load_embedding_dict
-from utils.func_utils import build_embedding_matrix
 from torch.nn.utils.rnn import pack_padded_sequence
 from torch.nn.utils.rnn import pad_packed_sequence
 
@@ -172,8 +171,7 @@ class BiDAFEmbeddingLayer(nn.Module):
         self.encoder = MaskedLSTMEncoder(hidden_size, hidden_size, True, True, 1, params.dropout)
 
     def __load_embedding(self, params):
-        embedding_dict = load_embedding_dict(params.word_embedding_path)
-        w = build_embedding_matrix(embedding_dict, params.word_vocab)
+        w = np.load(params.word_embedding_matrix_path)['w']
         self.word_embedding.from_pretrained(torch.from_numpy(w).cuda(), freeze=True)
 
     def forward(self, x_word, x_lens):

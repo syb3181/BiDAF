@@ -3,11 +3,19 @@ This script is used for the generation of torchtext friendly dataset.
 """
 
 import argparse
+import collections
 import json
 import spacy
 import os
 import tqdm
+import numpy as np
+
+from torchtext.data import Field
+
+from utils.func_utils import load_embedding_dict
+from utils.func_utils import build_embedding_matrix
 from utils.model_utils import Params
+from utils.model_utils import save
 
 parser = argparse.ArgumentParser(description='Generate dataset!')
 parser.add_argument('--data_dir', default='../tmp_data')
@@ -64,6 +72,16 @@ class SquadPreprocessor:
 
     def __init__(self):
         self.multi_answer_question = 0
+        self.WORD_TEXT_FIELD = Field(
+            tokenize=(lambda s: s.split('|')),
+            sequential=True,
+            use_vocab=True,
+            batch_first=True,
+            lower=False,
+            include_lengths=True
+        )
+        self.word_counter = collections.Counter()
+        self.vocab = []
 
     def process_file(self, file_path):
         examples = []
@@ -82,11 +100,15 @@ class SquadPreprocessor:
             word_context = word_level_tokenize(context)
             if len(word_context) > params.max_context_len:
                 continue
-            context_spans = get_spans(context, word_context)
             qas = paragraph['qas']
+            for token in word_context:
+                self.word_counter[token] += len(qas)
+            context_spans = get_spans(context, word_context)
             for qa in qas:
                 query = qa['question'].replace("''", '" ').replace("``", '" ')
                 word_query = word_level_tokenize(query)
+                for token in word_query:
+                    self.word_counter[token] += 1
                 if len(word_query) > params.max_query_len:
                     continue
                 if len(qa['answers']) > 1:
@@ -118,6 +140,16 @@ class SquadPreprocessor:
                 ret.append(data)
         return ret
 
+    def build_and_save_vocab(self, save_path, freq_limit=0):
+        self.vocab = [k for k, v in self.word_counter.items() if v > freq_limit]
+        self.WORD_TEXT_FIELD.build_vocab([self.vocab])
+        save(save_path, self.WORD_TEXT_FIELD.vocab.itos, message="word list")
+
+    def build_and_save_w(self, load_path, save_path):
+        embedding_dict = load_embedding_dict(load_path)
+        w = build_embedding_matrix(embedding_dict, self.WORD_TEXT_FIELD.vocab.itos)
+        np.savez(save_path, w=w)
+
 
 if __name__ == '__main__':
     processor = SquadPreprocessor()
@@ -128,4 +160,6 @@ if __name__ == '__main__':
         json.dump(train_data, f_train)
     with open(os.path.join(ns.data_dir, 'val', 'val_data.json'), 'w', encoding='utf-8') as f_val:
         json.dump(val_data, f_val)
+    processor.build_and_save_vocab(params.word_vocab_path)
+    processor.build_and_save_w(params.word_embedding_path, params.word_embedding_matrix_path)
 

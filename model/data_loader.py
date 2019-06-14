@@ -33,15 +33,8 @@ class DataLoader(object):
             sequential=True,
             use_vocab=True,
             batch_first=True,
-            lower=True,
+            lower=False,
             include_lengths=True
-        )
-        self.CHAR_TEXT_FIELD = Field(
-            tokenize=(lambda s: s.split()),
-            sequential=True,
-            use_vocab=True,
-            batch_first=True,
-            lower=True
         )
         self.tensor_fields = {
             'c_word':  self.WORD_TEXT_FIELD,
@@ -49,8 +42,8 @@ class DataLoader(object):
         }
         self.other_fields = ['c', 'q', 'a', 'q1', 'q2', 'gts', 'q1s', 'q2s', 'tkd_c']
         with open(self.params.word_vocab_path, 'r', encoding='utf-8') as f:
-            token_list = [word for word in f.read().splitlines()]
-            self.WORD_TEXT_FIELD.build_vocab([token_list])
+            token_list = json.load(f)
+        self.WORD_TEXT_FIELD.build_vocab([token_list])
 
     def load_data(self, data_path, split='all', size_limit=-1):
         with open(data_path, 'r', encoding='utf-8') as f:

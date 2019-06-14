@@ -4,7 +4,7 @@ import os
 import shutil
 
 import torch
-
+import numpy as np
 
 class Params:
     """Class that loads hyperparameters from a json file.
@@ -186,3 +186,29 @@ class EMA:
             if param.requires_grad:
                 assert name in self.shadow
                 param.data = self.original[name]
+
+
+def torch_from_json(path, dtype=torch.float32):
+    """Load a PyTorch Tensor from a JSON file.
+
+    Args:
+        path (str): Path to the JSON file to load.
+        dtype (torch.dtype): Data type of loaded array.
+
+    Returns:
+        tensor (torch.Tensor): Tensor loaded from JSON file.
+    """
+    with open(path, 'r') as fh:
+        array = np.array(json.load(fh))
+
+    tensor = torch.from_numpy(array).type(dtype)
+
+    return tensor
+
+
+def save(filename, obj, message=None):
+    if message is not None:
+        print("Saving {}...".format(message))
+        with open(filename, "w") as fh:
+            json.dump(obj, fh)
+    print("Saved!")
