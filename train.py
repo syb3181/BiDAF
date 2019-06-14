@@ -168,8 +168,8 @@ if __name__ == '__main__':
     params.cuda = torch.cuda.is_available()
 
     # Set the random seed for reproducible experiments
-    torch.manual_seed(230)
-    if params.cuda: torch.cuda.manual_seed(230)
+    # torch.manual_seed(230)
+    # if params.cuda: torch.cuda.manual_seed(230)
 
     # Set the logger
     utils.set_logger(os.path.join(args.model_dir, 'train.log'))

@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 
 
-def load_embedding_dict(file_path, dim=300):
+def load_embedding_dict(counter, file_path, dim=300):
     """
     :param file_path: the file path of embedding dict
     :return: dict[key=word, value=embedding_matrix]
@@ -13,7 +13,9 @@ def load_embedding_dict(file_path, dim=300):
         ret = {}
         for line in f.readlines():
             row = line.split()
-            ret[''.join(row[:-dim])] = [float(x) for x in row[-dim:]]
+            word = ''.join(row[:-dim])
+            if word in counter:
+                ret[word] = [float(x) for x in row[-dim:]]
     return ret
 
 

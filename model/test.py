@@ -1,7 +1,4 @@
-import numpy as np
+from model.preprocess import word_level_tokenize
 
-w = np.zeros((3, 5), dtype=float)
-np.savez('../output/w.npz', w=w)
-
-z = np.load('../output/w.npz')
-print(z['w'])
+z = word_level_tokenize("I'm OK, are you OK? I am in China, I bought china.")
+print(z)

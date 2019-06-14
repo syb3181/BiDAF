@@ -27,7 +27,7 @@ nlp = spacy.blank('en')
 
 def word_level_tokenize(text):
     doc = nlp(text)
-    return [token.text for token in doc if token.text != ' ']
+    return [token.text for token in doc]
 
 
 def get_spans(text, tokens):
@@ -102,7 +102,7 @@ class SquadPreprocessor:
                 continue
             qas = paragraph['qas']
             for token in word_context:
-                self.word_counter[token] += len(qas)
+                self.word_counter[token] += 1
             context_spans = get_spans(context, word_context)
             for qa in qas:
                 query = qa['question'].replace("''", '" ').replace("``", '" ')
@@ -140,13 +140,14 @@ class SquadPreprocessor:
                 ret.append(data)
         return ret
 
-    def build_and_save_vocab(self, save_path, freq_limit=0):
+    def build_and_save_vocab(self, save_path, freq_limit=5):
         self.vocab = [k for k, v in self.word_counter.items() if v > freq_limit]
         self.WORD_TEXT_FIELD.build_vocab([self.vocab])
-        save(save_path, self.WORD_TEXT_FIELD.vocab.itos, message="word list")
+        print(self.WORD_TEXT_FIELD.vocab.itos[:100])
+        save(save_path, self.vocab, message="word list")
 
     def build_and_save_w(self, load_path, save_path):
-        embedding_dict = load_embedding_dict(load_path)
+        embedding_dict = load_embedding_dict(self.word_counter, load_path)
         w = build_embedding_matrix(embedding_dict, self.WORD_TEXT_FIELD.vocab.itos)
         np.savez(save_path, w=w)
 

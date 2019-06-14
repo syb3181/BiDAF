@@ -1,6 +1,6 @@
 {
   "word_embedding_path": "/home/shengyibin/PycharmProjects/BiDAF/tmp_data/glove.840B.300d.txt",
-  "word_embedding_matrix_path": "/home/shengyibin/PycharmProjects/BiDAF/tmp_data/w.json.npz",
+  "word_embedding_matrix_path": "/home/shengyibin/PycharmProjects/BiDAF/tmp_data/w_840B_300d.npz",
   "word_vocab_path": "/home/shengyibin/PycharmProjects/BiDAF/tmp_data/words.txt",
   "max_word_len": 20,
   "max_context_len": 400,

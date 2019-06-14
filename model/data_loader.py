@@ -21,15 +21,23 @@ class DataLoader(object):
                     dataset params (such as vocab size, num_of_tags etc.) to params.
         """
         self.params = params
+        with open(params.word_vocab_path, "r", encoding="utf-8") as f:
+            self.word_set = set(json.load(f))
         self.__build_text_field()
         self.dataset = {}
         self.shuffler = None
         params.word_vocab_size = len(self.WORD_TEXT_FIELD.vocab.itos)
         params.word_vocab = self.WORD_TEXT_FIELD.vocab.itos
 
+    def _get_word(self, word):
+        for each in (word, word.lower(), word.capitalize(), word.upper()):
+            if each in self.word_set:
+                return each
+        return word
+
     def __build_text_field(self):
         self.WORD_TEXT_FIELD = Field(
-            tokenize=(lambda s: s.split('|')),
+            tokenize=(lambda s: [self._get_word(x) for x in s.split('|')]),
             sequential=True,
             use_vocab=True,
             batch_first=True,
@@ -131,4 +139,5 @@ if __name__ == '__main__':
             print("Answer: {}".format(ans[i]))
             print([data_loader.WORD_TEXT_FIELD.vocab.itos[ind] for ind in c[i][s_ind: t_ind + 1]])
             print(a['tkd_c'][i][s_ind: t_ind + 1])
+    print(data_loader.WORD_TEXT_FIELD.vocab.itos[:100])
 
