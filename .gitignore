@@ -11,3 +11,5 @@ output/*
 tmp/*
 model_dir/*
 tmp_data/*
+!model_dir/configs.json
+!tmp_data/dataset_configs.json
