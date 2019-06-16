@@ -162,17 +162,13 @@ class BiDAFEmbeddingLayer(nn.Module):
     def __init__(self, params):
         super().__init__()
         hidden_size = params.hidden_size
-        self.word_embedding = nn.Embedding(params.word_vocab_size, params.word_embedding_dim, 1)
-        self.__load_embedding(params)
+        w = np.load(params.word_embedding_matrix_path)['w']
+        self.word_embedding = nn.Embedding.from_pretrained(torch.from_numpy(w).cuda(), padding_idx=1)
         self.word_embedding_dropout = nn.Dropout(params.dropout)
         self.embedding_dim = params.word_embedding_dim
         self.proj = nn.Linear(self.embedding_dim, hidden_size, bias=False)
         self.highway_network = HighwayEncoder(2, hidden_size)
         self.encoder = MaskedLSTMEncoder(hidden_size, hidden_size, True, True, 1, params.dropout)
-
-    def __load_embedding(self, params):
-        w = np.load(params.word_embedding_matrix_path)['w']
-        self.word_embedding.from_pretrained(torch.from_numpy(w).cuda(), freeze=True)
 
     def forward(self, x_word, x_lens):
         """
